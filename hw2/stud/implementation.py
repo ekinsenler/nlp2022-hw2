@@ -5,6 +5,8 @@ import numpy as np
 from typing import List, Tuple
 
 from model import Model
+import torch
+from stud_model import SRLModel
 
 
 def build_model_34(language: str, device: str) -> Model:
@@ -18,7 +20,8 @@ def build_model_34(language: str, device: str) -> Model:
             3: Argument identification.
             4: Argument classification.
     """
-    return Baseline(language=language)
+    ###return Baseline(language=language)
+    return StudentModel(language=language, device=device)
 
 
 def build_model_234(language: str, device: str) -> Model:
@@ -131,16 +134,22 @@ class Baseline(Model):
         return baselines
 
 
-class StudentModel(Model):
+class StudentModel(Model, SRLModel):
 
     # STUDENT: construct here your model
     # this class should be loading your weights and vocabulary
     # MANDATORY to load the weights that can handle the given language
     # possible languages: ["EN", "FR", "ES"]
     # REMINDER: EN is mandatory the others are extras
-    def __int__(self, language: str):
+    def __init__(self, language: str, device: str):
+        super(SRLModel, self).__init__()
+        super(Model, self).__init__()
         # load the specific model for the input language
+
         self.language = language
+        assert language == 'EN', 'Only english is implemented'
+        self.device = torch.device('cuda:0') if device == 'cuda:0' else torch.device('cpu')
+        self.to(self.device)
 
     def predict(self, sentence):
         """
