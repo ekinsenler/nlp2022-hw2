@@ -1,3 +1,6 @@
+import torch
+
+from config import config as cfg
 class Vocabulary:
     def __init__(self):
         self.id2lemma = {0:'<PAD>', 1: '<SOS>', 2:'<EOS>', 3:'<UNK>', 4:'<SEP>'}
@@ -25,28 +28,31 @@ class Vocabulary:
 
     def construct_vocabulary(self, sentences, labels):
         for sentence, label in zip(sentences.values(), labels.values()):
-            for word, lemma, predicate, pt, role in zip(sentence['words'], sentence['lemmas'], sentence['predicates'], sentence['pos_tags'], label['roles']):
-                if word not in self.id2word.items():
+            for word, lemma, predicate, pt, *role in zip(sentence['words'], sentence['lemmas'], sentence['predicates'], sentence['pos_tags'], *label['roles'].values()):
+                if word not in self.id2word.values():
                     self.id2word[self.index_words] = word
                     self.word2id[word] = self.index_words
                     self.index_words += 1
-                if lemma not in self.id2lemma.items():
+                if lemma not in self.id2lemma.values():
                     self.id2lemma[self.index_lemmas] = lemma
                     self.lemma2id[lemma]= self.index_lemmas
                     self.index_lemmas += 1
-                if predicate not in self.id2pred.items():
+                if predicate not in self.id2pred.values():
                     self.id2pred[self.index_predicates] = predicate
                     self.pred2id[predicate] = self.index_predicates
                     self.index_predicates += 1
-                if pt not in self.id2pt.items():
+                if pt not in self.id2pt.values():
                     self.id2pt[self.index_pts] = pt
                     self.pt2id[pt] = self.index_pts
                     self.index_pts += 1
-                if role not in self.id2role.items():
-                    self.id2role[self.index_roles] = role
-                    self.role2id[role] = self.index_roles
-                    self.index_roles += 1
+                for i_role in role:
+                    if i_role not in self.id2role.values():
+                        self.id2role[self.index_roles] = i_role
+                        self.role2id[i_role] = self.index_roles
+                        self.index_roles += 1
             self.constructed = True
+            torch
+
 
     def words2indeces(self, words):
         indexed_words = []
@@ -80,8 +86,8 @@ class Vocabulary:
         for pt in pts:
             if pt in self.pt2id.keys():
                 indexed_pts.append(self.pt2id[pt])
-            else:
-                indexed_pts.append(self.pt2id['<UNK>'])
+            # else:
+            #     indexed_pts.append(self.pt2id['<UNK>'])
         return indexed_pts
 
     def roles2indices(self, roles):
@@ -89,8 +95,11 @@ class Vocabulary:
         for role in roles:
             if role in self.role2id.keys():
                 indexed_roles.append(self.role2id[role])
-            else:
-                indexed_roles.append(self.role2id['<UNK>'])
+            # else:
+            #     indexed_roles.append(self.role2id['<UNK>'])
         return indexed_roles
+
+    def load(self, filepath):
+        vocab = torch.load()
 
 

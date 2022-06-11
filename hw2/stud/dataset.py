@@ -1,5 +1,7 @@
 from torch.utils.data import Dataset
 from vocab import Vocabulary
+from torch.nn.utils.rnn import pad_sequence
+import torch
 
 ####################################################################
 #Dataset class for predicate identification and classification task#
@@ -43,9 +45,26 @@ class PICDataset(Dataset):
                     sentence['predicates'] = [self.vocab.pred2id['_']]*len(self.sentences[sentence_key]['predicates'])
                     sentence['predicates'][i] = self.vocab.pred2id.get(self.pred[i], self.vocab.pred2id['<UNK>'])
                     sentence['pos_tags'] = self.vocab.pts2indices(self.sentences[sentence_key]['pos_tags'])
-                    sentence['roles'] = self.vocab.roles2indices(self.labels[sentence_key]['roles'])
+                    sentence['roles'] = self.vocab.roles2indices(self.labels[sentence_key]['roles'][i])
                     sentences.append(sentence)
         self.features = sentences
+
+    def collate_fn(self, batch):
+        words_batch = [sentence['words'] for sentence in batch]
+        predicates_batch = [sentence['predicates'] for sentence in batch]
+        pos_tags_batch = [sentence['pos_tags'] for sentence in batch]
+        lemmas_batch = [sentence['lemmas'] for sentence in batch]
+        roles_batch = [sentence['roles'] for sentence in batch]
+        sentence = dict()
+        sentence['words']= pad_sequence([torch.as_tensor(sample) for sample in words_batch], batch_first=True)
+        sentence['predicates']= pad_sequence([torch.as_tensor(sample) for sample in predicates_batch], batch_first=True)
+        sentence['pos_tags']= pad_sequence([torch.as_tensor(sample) for sample in pos_tags_batch], batch_first=True)
+        sentence['lemmas']= pad_sequence([torch.as_tensor(sample) for sample in lemmas_batch], batch_first=True)
+        sentence['roles']= pad_sequence([torch.as_tensor(sample) for sample in roles_batch], batch_first=True)
+
+
+        return sentence
+
 
         
 

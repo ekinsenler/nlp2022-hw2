@@ -1,5 +1,9 @@
 import json
-
+from typing import List, Dict
+from torch.nn.utils.rnn import pad_sequence
+import torch
+from gensim.models import KeyedVectors
+import numpy as np
 
 def read_dataset(path: str):
     with open(path) as f:
@@ -186,3 +190,73 @@ def print_table(title, results):
         f1,
     )
     return output
+
+
+def collate_fn(batch: List[Dict], vocab) -> List[Dict]:
+    # extract features and labels from batch
+    x = [sample["text"] for sample in batch]
+    y = [sample["label"] for sample in batch]
+    # convert words to index
+    #x = [[vocab.word_to_id(word) for word in sample] for sample in x]
+    # convert labels to index
+    #y = [[vocab.label_to_id(label) for label in sample] for sample in y]
+    # convert features to tensor and pad them
+    x = pad_sequence(
+        [torch.as_tensor(sample) for sample in x],
+        batch_first=True,
+        padding_value=vocab.pad()
+    )
+    # convert and pad labels too
+    y = pad_sequence(
+        [torch.as_tensor(sample) for sample in y],
+        batch_first=True,
+        padding_value=vocab.pad()
+    )
+    return (x, y)
+
+
+def load_torch_embedding_layer(weights: KeyedVectors, padding_idx: int = 0, freeze: bool = False):
+    vectors = weights
+    # random vector for pad
+    pad = np.random.rand(1, vectors.shape[1])
+    print(pad.shape)
+    # mean vector for unknowns
+    unk = np.mean(vectors, axis=0, keepdims=True)
+    print(unk.shape)
+    # concatenate pad and unk vectors on top of pre-trained weights
+    vectors = np.concatenate((pad, unk, vectors))
+    # convert to pytorch tensor
+    vectors = torch.FloatTensor(vectors)
+    # and return the embedding layer
+    return torch.nn.Embedding.from_pretrained(vectors, padding_idx=padding_idx, freeze=freeze)
+
+
+def get_mask(batch_tensor):
+    mask = batch_tensor.eq(0)
+    mask = mask.eq(0)
+    return mask
+
+
+def build_pretrain_embedding(embed, word_vocab, embedd_dim=100):
+    vocab_size = len(word_vocab.id2word)
+    scale = np.sqrt(3.0 / embedd_dim)
+    pretrain_emb = np.empty([vocab_size, embedd_dim])
+    perfect_match = 0
+    case_match = 0
+    not_match = 0
+    for word, index in word_vocab.word2id.items():
+        if word in embed:
+            pretrain_emb[index, :] = embed[word]
+            perfect_match += 1
+        elif word.lower() in embed:
+            pretrain_emb[index, :] = embed[word.lower()]
+            case_match += 1
+        else:
+            pretrain_emb[index, :] = np.random.uniform(-scale, scale, [1, embedd_dim])
+            not_match += 1
+
+    pretrain_emb[0, :] = np.zeros((1, embedd_dim))
+    pretrained_size = len(embed)
+    print("Embedding:\n     pretrain word:%s, prefect match:%s, case_match:%s, oov:%s, oov%%:%s" % (
+        pretrained_size, perfect_match, case_match, not_match, (not_match + 0.) / vocab_size))
+    return pretrain_emb

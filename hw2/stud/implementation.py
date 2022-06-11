@@ -7,6 +7,7 @@ from typing import List, Tuple
 from model import Model
 import torch
 from stud_model import SRLModel
+import pathlib
 
 
 def build_model_34(language: str, device: str) -> Model:
@@ -134,7 +135,7 @@ class Baseline(Model):
         return baselines
 
 
-class StudentModel(Model, SRLModel):
+class StudentModel(Model):
 
     # STUDENT: construct here your model
     # this class should be loading your weights and vocabulary
@@ -142,14 +143,28 @@ class StudentModel(Model, SRLModel):
     # possible languages: ["EN", "FR", "ES"]
     # REMINDER: EN is mandatory the others are extras
     def __init__(self, language: str, device: str):
-        super(SRLModel, self).__init__()
+        curr_dir = pathlib.Path(__file__)
+        proj_dir = curr_dir.parent.parent.parent
+        hw1_dir = curr_dir.parent.parent
+
+        data_train_path = proj_dir / 'data' / 'data_hw2' / 'EN' / 'train.json'
+        data_dev_path = proj_dir / 'data' / 'data_hw2' / 'EN' / 'dev.json'
+        model_path = proj_dir / 'model'
+
+        if (model_path / 'vocab.pt').is_file():
+            vocab = torch.load(model_path / 'vocab.pt')
+        else:
+            vocab = Vocabulary()
+            vocab.construct_vocabulary(train_sentences, train_labels)
+            torch.save(vocab, model_path / 'vocab.pt')
         super(Model, self).__init__()
+        self.SRLModel = SRLModel(vocab=vocab)
         # load the specific model for the input language
 
         self.language = language
         assert language == 'EN', 'Only english is implemented'
         self.device = torch.device('cuda:0') if device == 'cuda:0' else torch.device('cpu')
-        self.to(self.device)
+        self.SRLModel.to(self.device)
 
     def predict(self, sentence):
         """
