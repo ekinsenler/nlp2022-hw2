@@ -191,30 +191,6 @@ def print_table(title, results):
     )
     return output
 
-
-def collate_fn(batch: List[Dict], vocab) -> List[Dict]:
-    # extract features and labels from batch
-    x = [sample["text"] for sample in batch]
-    y = [sample["label"] for sample in batch]
-    # convert words to index
-    #x = [[vocab.word_to_id(word) for word in sample] for sample in x]
-    # convert labels to index
-    #y = [[vocab.label_to_id(label) for label in sample] for sample in y]
-    # convert features to tensor and pad them
-    x = pad_sequence(
-        [torch.as_tensor(sample) for sample in x],
-        batch_first=True,
-        padding_value=vocab.pad()
-    )
-    # convert and pad labels too
-    y = pad_sequence(
-        [torch.as_tensor(sample) for sample in y],
-        batch_first=True,
-        padding_value=vocab.pad()
-    )
-    return (x, y)
-
-
 def load_torch_embedding_layer(weights: KeyedVectors, padding_idx: int = 0, freeze: bool = False):
     vectors = weights
     # random vector for pad

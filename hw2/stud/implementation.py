@@ -143,6 +143,11 @@ class StudentModel(Model):
     # possible languages: ["EN", "FR", "ES"]
     # REMINDER: EN is mandatory the others are extras
     def __init__(self, language: str, device: str):
+        super(Model, self).__init__()
+        # load the specific model for the input language
+        self.language = language
+        assert language == 'EN', 'Only english is implemented'
+
         curr_dir = pathlib.Path(__file__)
         proj_dir = curr_dir.parent.parent.parent
         hw1_dir = curr_dir.parent.parent
@@ -157,14 +162,9 @@ class StudentModel(Model):
             vocab = Vocabulary()
             vocab.construct_vocabulary(train_sentences, train_labels)
             torch.save(vocab, model_path / 'vocab.pt')
-        super(Model, self).__init__()
-        self.SRLModel = SRLModel(vocab=vocab)
-        # load the specific model for the input language
-
-        self.language = language
-        assert language == 'EN', 'Only english is implemented'
-        self.device = torch.device('cuda:0') if device == 'cuda:0' else torch.device('cpu')
-        self.SRLModel.to(self.device)
+        self.device = torch.device(device),
+        self.SRLModel = SRLModel(vocab=vocab, device=self.device)
+        #self.SRLModel.to(self.device)
 
     def predict(self, sentence):
         """

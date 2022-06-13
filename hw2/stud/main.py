@@ -1,5 +1,4 @@
 import torch
-
 from hw2.utils import read_dataset
 import pathlib
 from vocab import Vocabulary
@@ -7,10 +6,10 @@ from dataset import PICDataset
 from torch.utils.data import DataLoader
 from config import config as cfg
 from implementation import build_model_34
+
 curr_dir = pathlib.Path(__file__)
 proj_dir = curr_dir.parent.parent.parent
 hw1_dir = curr_dir.parent.parent
-
 data_train_path= proj_dir/'data'/'data_hw2'/'EN'/'train.json'
 data_dev_path=proj_dir/'data'/'data_hw2'/'EN'/'dev.json'
 model_path = proj_dir/'model'
@@ -38,7 +37,7 @@ def main():
     train_dataloader = DataLoader(train_dataset, batch_size=cfg['batch_size'], collate_fn=train_dataset.collate_fn, shuffle=True)
     val_dataloader = DataLoader(val_dataset, batch_size=cfg['batch_size'], collate_fn=val_dataset.collate_fn, shuffle=True)
 
-    net = build_model_34(language='EN', device=cfg['device'])
+    net = build_model_34(language='EN', device='cuda')
     net.predict([['']])
     net.SRLModel.train_net(train_dataloader, val_dataloader, model_path)
 

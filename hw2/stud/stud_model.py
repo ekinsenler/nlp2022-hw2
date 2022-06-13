@@ -10,10 +10,11 @@ from tqdm import trange
 import datetime
 
 class SRLModel(Module):
-    def __init__(self,  vocab: Vocabulary, pretrained_embed = cfg['pretrained_embed']):
+    def __init__(self,  vocab: Vocabulary, device: torch.device, pretrained_embed = cfg['pretrained_embed']):
         super(SRLModel, self).__init__()
         self.input_dim = cfg['word_embed_dim']
         self.vocab = vocab
+        self.device = device
         weights = api.load(pretrained_embed)
         trimmed_embed = build_pretrain_embedding(weights, self.vocab, embedd_dim = cfg['word_embed_dim'])
         self.word_embeddings = load_torch_embedding_layer(trimmed_embed,padding_idx=0, freeze=True)
@@ -26,6 +27,7 @@ class SRLModel(Module):
         self.dropout = Dropout(p=0.2)
         self.hidden2label = Linear(in_features=cfg['hidden_size'], out_features=vocab.index_roles)
         self.optimizer = torch.optim.Adam(self.parameters(), lr=cfg['lr'])
+
     def forward(self, x):
         word_embed = self.word_embeddings(x['words'])
         pos_embed = self.pos_embeddings(x['pos_tags'])
@@ -67,7 +69,7 @@ class SRLModel(Module):
     def train_net(self, train_data_loader, val_data_loader, train_path):
         self.writer = SummaryWriter(cfg['log_dir'])
         epoch = 0
-
+        print(f"Starting training on {self.device}, with batch size ({cfg['batch_size']})")
         for ep in trange(cfg['num_epoch']):
             ##############
             ###TRAINING###
@@ -109,7 +111,7 @@ class SRLModel(Module):
 
             print('epoch: ' + str(ep) + ' # ' + ' loss: ' + str(mean_train_loss.item()) + ' # ' + '  val loss: ' + str(mean_valid_loss.item())  + ' # '+ '\n')
             epoch += 1
-        model_name = 'model_' + str(cfg['num_epoch']) +  'epoch_' + str(datetime.datetime.now().timestamp()) + '.pt'
+        model_name = 'model_' + str(cfg['num_epoch']) + 'epoch_' + str(datetime.datetime.now().timestamp()) + '.pt'
         torch.save(self.state_dict(), train_path / model_name)
         self.writer.close()
 
