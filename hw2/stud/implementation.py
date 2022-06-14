@@ -1,9 +1,10 @@
 import json
 import random
-
+from typing import Dict
 import numpy as np
 from typing import List, Tuple
-
+from dataset import PICDataset
+from torch.utils.data import DataLoader
 from model import Model
 import torch
 from stud_model import SRLModel
@@ -147,6 +148,7 @@ class StudentModel(Model):
         # load the specific model for the input language
         self.language = language
         assert language == 'EN', 'Only english is implemented'
+        self.device = torch.device(device)
 
         curr_dir = pathlib.Path(__file__)
         proj_dir = curr_dir.parent.parent.parent
@@ -154,17 +156,43 @@ class StudentModel(Model):
 
         data_train_path = proj_dir / 'data' / 'data_hw2' / 'EN' / 'train.json'
         data_dev_path = proj_dir / 'data' / 'data_hw2' / 'EN' / 'dev.json'
-        model_path = proj_dir / 'model'
+        model_dir = proj_dir / 'model'
 
-        if (model_path / 'vocab.pt').is_file():
-            vocab = torch.load(model_path / 'vocab.pt')
+        if (model_dir / 'vocab.pt').is_file():
+            self.vocab = torch.load(model_dir / 'vocab.pt')
         else:
-            vocab = Vocabulary()
-            vocab.construct_vocabulary(train_sentences, train_labels)
-            torch.save(vocab, model_path / 'vocab.pt')
-        self.device = torch.device(device),
-        self.SRLModel = SRLModel(vocab=vocab, device=self.device)
+            self.vocab = Vocabulary()
+            self.vocab.construct_vocabulary(train_sentences, train_labels)
+            torch.save(vocab, model_dir / 'vocab.pt')
+        self.SRLModel = SRLModel(vocab=self.vocab, device=self.device)
         #self.SRLModel.to(self.device)
+
+    def predict_sentences(self, sentences_dataloader:DataLoader):
+        result = dict()
+        for id in sentences_dataloader.dataset.no_pred_ids:
+            result[id] = {'roles': {}}
+        self.SRLModel.eval()
+        with torch.no_grad():
+            for batch_sentence in sentences_dataloader:
+                batch_prediction = self.SRLModel(batch_sentence)
+                batch_padding_masking = batch_sentence['words'] > 0
+                for prediction, mask, key in zip(batch_prediction, batch_padding_masking, batch_sentence['id']):
+                    prediction = torch.argmax(prediction, -1)
+                    unpadded_pred = torch.masked_select(prediction, mask)
+                    unpadded_pred = dict()
+                    unpadded_pred['predicates'] = torch.masked_select(prediction, mask)
+                    unpadded_pred['pred_index'] = sentences_dataloader.dataset.get_predicates(unpadded_pred)
+                    unpadded_pred_index = self.vocab.indices2preds(unpadded_pred['predicates'])
+                    if unpadded_pred['pred_index']:
+                        for i in self.unpadded_pred['pred_index'].keys():
+                            if key in result:
+                                result[key]['roles'][i] = unpadded_pred_index
+                            else:
+                                result[key] = {'roles': {i: unpadded_pred_index}}
+                            result[key] = {'roles':unpadded_pred_index}
+                    else:
+                        result[key] = {'roles': {}}
+        return result
 
     def predict(self, sentence):
         """
@@ -212,4 +240,8 @@ class StudentModel(Model):
                         "roles": dictionary of lists, # A list of roles for each predicate (index) you identify in the sentence.
                     }
         """
-        pass
+        test_dataset = PICDataset({0 : sentence}, labels=None, vocab=self.vocab)
+        test_dataset.prepare_sentences()
+        result = self.predict_sentences(test_dataset)
+
+        return result[0]

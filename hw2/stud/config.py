@@ -32,10 +32,11 @@ config = Config(
     pos_embed_dim=100,
     pred_embed_dim=100,
     hidden_size=400,
-    num_epoch=10,
+    num_epoch=20,
     lr=1e-4,
     log_dir='',
     model_path='',
     dropout=0.2,
-    num_layer=2
+    num_layer=2,
+    is_train = True
 )

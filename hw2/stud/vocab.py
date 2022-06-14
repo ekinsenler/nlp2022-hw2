@@ -81,6 +81,12 @@ class Vocabulary:
                 indexed_preds.append(self.pred2id['<UNK>'])
         return indexed_preds
 
+    def indices2preds(self, indices):
+        preds = []
+        for index in indices:
+            preds.append(self.id2pred[index.item()])
+        return preds
+
     def pts2indices(self, pts):
         indexed_pts = []
         for pt in pts:

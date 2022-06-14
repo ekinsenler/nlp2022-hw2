@@ -12,6 +12,7 @@ class PICDataset(Dataset):
         self.sentences = sentences
         self.labels = labels
         self.vocab = vocab
+        self.no_pred_ids = []
 
     def __len__(self) -> int:
         assert hasattr(self, 'features'), 'Call prepare features first'
@@ -31,7 +32,7 @@ class PICDataset(Dataset):
                 if p != '_':
                     pred[i] = p
             self.pred = pred
-            return True
+            return pred
 
     def prepare_sentences(self):
         assert self.vocab.constructed, 'Vocabulary should be constructed before preparing the sentences'
@@ -46,7 +47,12 @@ class PICDataset(Dataset):
                     sentence['predicates'][i] = self.vocab.pred2id.get(self.pred[i], self.vocab.pred2id['<UNK>'])
                     sentence['pos_tags'] = self.vocab.pts2indices(self.sentences[sentence_key]['pos_tags'])
                     sentence['roles'] = self.vocab.roles2indices(self.labels[sentence_key]['roles'][i])
+                    sentence['id'] = sentence_key
+                    sentence['pred_indeces'] = i
                     sentences.append(sentence)
+            else:
+                self.no_pred_ids.append(sentence_key)
+
         self.features = sentences
 
     def collate_fn(self, batch):
@@ -55,14 +61,14 @@ class PICDataset(Dataset):
         pos_tags_batch = [sentence['pos_tags'] for sentence in batch]
         lemmas_batch = [sentence['lemmas'] for sentence in batch]
         roles_batch = [sentence['roles'] for sentence in batch]
+        ids_batch = [sentence['id'] for sentence in batch]
         sentence = dict()
-        sentence['words']= pad_sequence([torch.as_tensor(sample) for sample in words_batch], batch_first=True)
-        sentence['predicates']= pad_sequence([torch.as_tensor(sample) for sample in predicates_batch], batch_first=True)
-        sentence['pos_tags']= pad_sequence([torch.as_tensor(sample) for sample in pos_tags_batch], batch_first=True)
-        sentence['lemmas']= pad_sequence([torch.as_tensor(sample) for sample in lemmas_batch], batch_first=True)
-        sentence['roles']= pad_sequence([torch.as_tensor(sample) for sample in roles_batch], batch_first=True)
-
-
+        sentence['words'] = pad_sequence([torch.as_tensor(sample) for sample in words_batch], batch_first=True)
+        sentence['predicates'] = pad_sequence([torch.as_tensor(sample) for sample in predicates_batch], batch_first=True)
+        sentence['pos_tags'] = pad_sequence([torch.as_tensor(sample) for sample in pos_tags_batch], batch_first=True)
+        sentence['lemmas'] = pad_sequence([torch.as_tensor(sample) for sample in lemmas_batch], batch_first=True)
+        sentence['roles'] = pad_sequence([torch.as_tensor(sample) for sample in roles_batch], batch_first=True)
+        sentence['id'] = ids_batch
         return sentence
 
 
