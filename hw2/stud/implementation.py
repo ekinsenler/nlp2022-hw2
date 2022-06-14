@@ -178,18 +178,18 @@ class StudentModel(Model):
                 batch_padding_masking = batch_sentence['words'] > 0
                 for prediction, mask, key in zip(batch_prediction, batch_padding_masking, batch_sentence['id']):
                     prediction = torch.argmax(prediction, -1)
-                    unpadded_pred = torch.masked_select(prediction, mask)
+                    #unpadded_pred = torch.masked_select(prediction, mask)
                     unpadded_pred = dict()
                     unpadded_pred['predicates'] = torch.masked_select(prediction, mask)
                     unpadded_pred['pred_index'] = sentences_dataloader.dataset.get_predicates(unpadded_pred)
                     unpadded_pred_index = self.vocab.indices2preds(unpadded_pred['predicates'])
                     if unpadded_pred['pred_index']:
-                        for i in self.unpadded_pred['pred_index'].keys():
+                        for i in unpadded_pred['pred_index'].keys():
                             if key in result:
                                 result[key]['roles'][i] = unpadded_pred_index
                             else:
                                 result[key] = {'roles': {i: unpadded_pred_index}}
-                            result[key] = {'roles':unpadded_pred_index}
+                            #result[key] = {'roles':unpadded_pred_index}
                     else:
                         result[key] = {'roles': {}}
         return result
