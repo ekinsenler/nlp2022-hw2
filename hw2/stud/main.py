@@ -41,13 +41,13 @@ def main():
     if cfg['is_train']:
         net.SRLModel.train_net(train_dataloader, val_dataloader, model_dir)
     else:
-        net.SRLModel.load_state_dict(torch.load(model_dir / 'model_2epoch_1655215727.326815.pt', map_location=torch.device('cpu')))
+        net.SRLModel.load_state_dict(torch.load(model_dir / 'model_10epoch_1654982194.764062.pt', map_location=torch.device('cpu')))
 
     prediction_val = net.predict_sentences(val_dataloader)
     arg_identification_val = evaluate_argument_identification(val_dataset.labels, prediction_val)
-    print_table('argIdentVal', arg_identification_val)
+    print(print_table('argIdentVal', arg_identification_val))
     arg_classification_val = evaluate_argument_classification(val_dataset.labels, prediction_val)
-    print_table('argClassVal', arg_classification_val)
+    print(print_table('argClassVal', arg_classification_val))
 
     print("Done")
 

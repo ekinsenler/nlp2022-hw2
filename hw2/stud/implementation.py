@@ -176,20 +176,20 @@ class StudentModel(Model):
             for batch_sentence in sentences_dataloader:
                 batch_prediction = self.SRLModel(batch_sentence)
                 batch_padding_masking = batch_sentence['words'] > 0
-                for prediction, mask, key in zip(batch_prediction, batch_padding_masking, batch_sentence['id']):
-                    prediction = torch.argmax(prediction, -1)
+                for prediction, mask, gold_pred, key in zip(batch_prediction, batch_padding_masking, batch_sentence['predicates'], batch_sentence['id']):
+                    prediction_index = torch.argmax(prediction, -1)
                     #unpadded_pred = torch.masked_select(prediction, mask)
                     unpadded_pred = dict()
-                    unpadded_pred['predicates'] = torch.masked_select(prediction, mask)
+                    unpadded_pred['predicates'] = torch.masked_select(gold_pred, mask)
+                    unpadded_pred['predicates'] = self.vocab.indices2preds(unpadded_pred['predicates'])
                     unpadded_pred['pred_index'] = sentences_dataloader.dataset.get_predicates(unpadded_pred)
-                    unpadded_pred_index = self.vocab.indices2preds(unpadded_pred['predicates'])
+                    prediction_str = self.vocab.indices2roles(prediction_index)
                     if unpadded_pred['pred_index']:
                         for i in unpadded_pred['pred_index'].keys():
                             if key in result:
-                                result[key]['roles'][i] = unpadded_pred_index
+                                result[key]['roles'][i] = prediction_str
                             else:
-                                result[key] = {'roles': {i: unpadded_pred_index}}
-                            #result[key] = {'roles':unpadded_pred_index}
+                                result[key] = {'roles': {i: prediction_str}}
                     else:
                         result[key] = {'roles': {}}
         return result

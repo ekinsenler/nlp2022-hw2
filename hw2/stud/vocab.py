@@ -51,7 +51,6 @@ class Vocabulary:
                         self.role2id[i_role] = self.index_roles
                         self.index_roles += 1
             self.constructed = True
-            torch
 
 
     def words2indeces(self, words):
@@ -104,6 +103,12 @@ class Vocabulary:
             # else:
             #     indexed_roles.append(self.role2id['<UNK>'])
         return indexed_roles
+
+    def indices2roles(self, indices):
+        roles = []
+        for index in indices:
+            roles.append(self.id2role[index.item()])
+        return roles
 
     def load(self, filepath):
         vocab = torch.load()

@@ -24,6 +24,8 @@ class SRLModel(Module):
         self.bilstm_input_size = cfg['word_embed_dim'] + cfg['lemma_embed_dim'] + cfg['pos_embed_dim'] + cfg['pred_embed_dim']
         self.bilstm = LSTM(input_size=self.bilstm_input_size, hidden_size= cfg['hidden_size'] // 2, bidirectional=True,
                            dropout=cfg['dropout'], num_layers=cfg['num_layer'], batch_first=True)
+        #self.bilstm2 = LSTM(input_size= cfg['hidden_size'] // 2, hidden_size= cfg['hidden_size'] // 2, bidirectional=True,
+         #                   dropout=cfg['dropout'], num_layers=cfg['num_layer'], batch_first=True)
         self.dropout = Dropout(p=0.2)
         self.hidden2label = Linear(in_features=cfg['hidden_size'], out_features=vocab.index_roles)
         self.optimizer = torch.optim.Adam(self.parameters(), lr=cfg['lr'])
