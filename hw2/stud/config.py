@@ -22,6 +22,7 @@ class Config(dict):
 
 
 config = Config(
+    model_name='model_20epoch_1655302145.592678.pt',
     train_data='',
     training_prediction='mixed_teacher_forcing',
     dynamic_tf=False,
@@ -31,6 +32,7 @@ config = Config(
     lemma_embed_dim=200,
     pos_embed_dim=200,
     pred_embed_dim=200,
+    bert_embed_dim=768,
     hidden_size=400,
     num_epoch=20,
     lr=1e-4,

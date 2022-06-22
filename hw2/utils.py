@@ -6,7 +6,7 @@ from gensim.models import KeyedVectors
 import numpy as np
 
 def read_dataset(path: str):
-    with open(path) as f:
+    with open(path, encoding='ascii', errors='ignore') as f:
         dataset = json.load(f)
 
     sentences, labels = {}, {}

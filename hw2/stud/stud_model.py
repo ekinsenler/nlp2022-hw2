@@ -21,7 +21,7 @@ class SRLModel(Module):
         self.lemma_embeddings = torch.nn.Embedding(num_embeddings=vocab.index_lemmas, embedding_dim=cfg['lemma_embed_dim'])
         self.pos_embeddings = torch.nn.Embedding(num_embeddings=vocab.index_pts, embedding_dim=cfg['pos_embed_dim'])
         self.pred_embedding = torch.nn.Embedding(num_embeddings=vocab.index_predicates, embedding_dim=cfg['pred_embed_dim'])
-        self.bilstm_input_size = cfg['word_embed_dim'] + cfg['lemma_embed_dim'] + cfg['pos_embed_dim'] + cfg['pred_embed_dim']
+        self.bilstm_input_size = cfg['word_embed_dim'] + cfg['lemma_embed_dim'] + cfg['pos_embed_dim'] + cfg['pred_embed_dim'] + cfg['bert_embed_dim']
         self.bilstm = LSTM(input_size=self.bilstm_input_size, hidden_size= cfg['hidden_size'] // 2, bidirectional=True,
                            dropout=cfg['dropout'], num_layers=cfg['num_layer'], batch_first=True)
         #self.bilstm2 = LSTM(input_size= cfg['hidden_size'] // 2, hidden_size= cfg['hidden_size'] // 2, bidirectional=True,
@@ -35,8 +35,9 @@ class SRLModel(Module):
         pos_embed = self.pos_embeddings(x['pos_tags'])
         lemma_embed = self.lemma_embeddings(x['lemmas'])
         pred_embed = self.pred_embedding(x['predicates'])
+        bert_embed = x['bert_embed']
 
-        packed_embed = torch.cat((word_embed, pos_embed, lemma_embed, pred_embed), dim=2)
+        packed_embed = torch.cat((word_embed, pos_embed, lemma_embed, pred_embed, bert_embed), dim=2)
         lstm_output_pack, self.hidden = self.bilstm(packed_embed)
         out = self.dropout(lstm_output_pack)
         out = self.hidden2label(out)
@@ -68,8 +69,8 @@ class SRLModel(Module):
 
         return total_loss
 
-    def train_net(self, train_data_loader, val_data_loader, train_path):
-        self.writer = SummaryWriter(cfg['log_dir'])
+    def train_net(self, train_data_loader, val_data_loader, train_path, log_dir_path):
+        self.writer = SummaryWriter(log_dir_path)
         epoch = 0
         print(f"Starting training on {self.device}, with batch size ({cfg['batch_size']})")
         for ep in trange(cfg['num_epoch']):
@@ -116,4 +117,6 @@ class SRLModel(Module):
         model_name = 'model_' + str(cfg['num_epoch']) + 'epoch_' + str(datetime.datetime.now().timestamp()) + '.pt'
         torch.save(self.state_dict(), train_path / model_name)
         self.writer.close()
+
+        return model_name
 
