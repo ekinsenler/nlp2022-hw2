@@ -19,13 +19,13 @@ data_dev_path=proj_dir/'data'/'data_hw2'/'EN'/'dev.json'
 def main():
     train_sentences, train_labels =read_dataset(data_train_path)
     val_sentences, val_labels = read_dataset(data_dev_path)
-    if (model_dir / 'vocab.pt').is_file() and False:
+    if (model_dir / 'vocab.pt').is_file():
         vocab = torch.load(model_dir / 'vocab.pt')
     else:
         vocab = Vocabulary()
         vocab.construct_vocabulary(train_sentences, train_labels)
         torch.save(vocab, model_dir / 'vocab.pt')
-    if (model_dir / 'train_dataset.pt').is_file() and False:
+    if (model_dir / 'train_dataset.pt').is_file():
         train_dataset = torch.load(model_dir / 'train_dataset.pt')
         val_dataset = torch.load(model_dir / 'val_dataset.pt')
     else:

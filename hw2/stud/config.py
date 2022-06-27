@@ -33,12 +33,13 @@ config = Config(
     pos_embed_dim=200,
     pred_embed_dim=200,
     bert_embed_dim=768,
-    hidden_size=400,
+    bert_bilstm_dim=200,
+    hidden_size=500,
     num_epoch=20,
     lr=1e-4,
     log_dir='',
     model_path='',
     dropout=0.2,
-    num_layer=2,
+    num_layers=2,
     is_train = True
 )

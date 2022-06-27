@@ -13,6 +13,8 @@ class SRLModel(Module):
     def __init__(self,  vocab: Vocabulary, device: torch.device, pretrained_embed = cfg['pretrained_embed']):
         super(SRLModel, self).__init__()
         self.input_dim = cfg['word_embed_dim']
+        self.num_layers = cfg['num_layers']
+        self.hidden_size = cfg['hidden_size']
         self.vocab = vocab
         self.device = device
         weights = api.load(pretrained_embed)
@@ -21,26 +23,28 @@ class SRLModel(Module):
         self.lemma_embeddings = torch.nn.Embedding(num_embeddings=vocab.index_lemmas, embedding_dim=cfg['lemma_embed_dim'])
         self.pos_embeddings = torch.nn.Embedding(num_embeddings=vocab.index_pts, embedding_dim=cfg['pos_embed_dim'])
         self.pred_embedding = torch.nn.Embedding(num_embeddings=vocab.index_predicates, embedding_dim=cfg['pred_embed_dim'])
-        self.bilstm_input_size = cfg['word_embed_dim'] + cfg['lemma_embed_dim'] + cfg['pos_embed_dim'] + cfg['pred_embed_dim'] + cfg['bert_embed_dim']
-        self.bilstm = LSTM(input_size=self.bilstm_input_size, hidden_size= cfg['hidden_size'] // 2, bidirectional=True,
-                           dropout=cfg['dropout'], num_layers=cfg['num_layer'], batch_first=True)
-        #self.bilstm2 = LSTM(input_size= cfg['hidden_size'] // 2, hidden_size= cfg['hidden_size'] // 2, bidirectional=True,
-         #                   dropout=cfg['dropout'], num_layers=cfg['num_layer'], batch_first=True)
+        self.bilstm_input_size = cfg['word_embed_dim'] + cfg['lemma_embed_dim'] + cfg['pos_embed_dim'] + cfg['pred_embed_dim'] + 200 #200 is bert_bilstm hidden size
+        self.bert_bilstm = LSTM(input_size= cfg['bert_embed_dim'], hidden_size= 200 // 2, bidirectional=True,
+                           dropout=cfg['dropout'], num_layers=self.num_layers, batch_first=True)
+        self.bilstm = LSTM(input_size=self.bilstm_input_size, hidden_size= self.hidden_size // 2, bidirectional=True,
+                           dropout=cfg['dropout'], num_layers=self.num_layers, batch_first=True)
+        self.bilstm_input_size += 200
         self.dropout = Dropout(p=0.2)
-        self.hidden2label = Linear(in_features=cfg['hidden_size'], out_features=vocab.index_roles)
+        self.hidden2label = Linear(in_features=self.hidden_size, out_features=vocab.index_roles)
         self.optimizer = torch.optim.Adam(self.parameters(), lr=cfg['lr'])
+        self.hidden = self.init_hidden(cfg['batch_size'], xavier=True)
 
     def forward(self, x):
         word_embed = self.word_embeddings(x['words'])
         pos_embed = self.pos_embeddings(x['pos_tags'])
         lemma_embed = self.lemma_embeddings(x['lemmas'])
         pred_embed = self.pred_embedding(x['predicates'])
-        bert_embed = x['bert_embed']
+        bert_embed, _ = self.bert_bilstm(x['bert_embed'])
 
         packed_embed = torch.cat((word_embed, pos_embed, lemma_embed, pred_embed, bert_embed), dim=2)
         lstm_output_pack, self.hidden = self.bilstm(packed_embed)
-        out = self.dropout(lstm_output_pack)
-        out = self.hidden2label(out)
+        #out = self.dropout(lstm_output_pack)
+        out = self.hidden2label(lstm_output_pack)
 
         return out
 
@@ -83,6 +87,7 @@ class SRLModel(Module):
             for x in train_data_loader:
                 batch_number += 1
                 self.zero_grad()
+                self.hidden = self.init_hidden(batch_size=cfg['batch_size'], xavier=True)
                 predicts = self(x)
                 #predicts = predicts.view(-1, predicts.shape[-1])
                 #predicts = torch.argmax(predicts, -1)
