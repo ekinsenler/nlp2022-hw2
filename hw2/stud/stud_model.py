@@ -2,12 +2,13 @@ import torch
 from torch.nn import Module, LSTM, Linear, Dropout, CrossEntropyLoss, init
 from torch.utils.tensorboard import SummaryWriter
 from torch.nn.utils import clip_grad_norm_
-from config import config as cfg
+from stud.config import config as cfg
 import gensim.downloader as api
-from utils import build_pretrain_embedding, load_torch_embedding_layer
-from vocab import Vocabulary
+from stud.stud_util import build_pretrain_embedding, load_torch_embedding_layer, get_mask
+from stud.vocab import Vocabulary
 from tqdm import trange
 import datetime
+from torchcrf import CRF
 
 class SRLModel(Module):
     def __init__(self,  vocab: Vocabulary, device: torch.device, pretrained_embed = cfg['pretrained_embed']):
@@ -23,13 +24,13 @@ class SRLModel(Module):
         self.lemma_embeddings = torch.nn.Embedding(num_embeddings=vocab.index_lemmas, embedding_dim=cfg['lemma_embed_dim'])
         self.pos_embeddings = torch.nn.Embedding(num_embeddings=vocab.index_pts, embedding_dim=cfg['pos_embed_dim'])
         self.pred_embedding = torch.nn.Embedding(num_embeddings=vocab.index_predicates, embedding_dim=cfg['pred_embed_dim'])
-        self.bilstm_input_size = cfg['word_embed_dim'] + cfg['lemma_embed_dim'] + cfg['pos_embed_dim'] + cfg['pred_embed_dim'] + 200 #200 is bert_bilstm hidden size
-        self.bert_bilstm = LSTM(input_size= cfg['bert_embed_dim'], hidden_size= 200 // 2, bidirectional=True,
-                           dropout=cfg['dropout'], num_layers=self.num_layers, batch_first=True)
+        self.bilstm_input_size = cfg['word_embed_dim'] + cfg['lemma_embed_dim'] + cfg['pos_embed_dim'] + cfg['pred_embed_dim'] + cfg['bert_embed_dim'] #200 is bert_bilstm hidden size
+        #self.bert_bilstm = LSTM(input_size= cfg['bert_embed_dim'], hidden_size= 200 // 2, bidirectional=True, dropout=cfg['dropout'], num_layers=self.num_layers, batch_first=True)
         self.bilstm = LSTM(input_size=self.bilstm_input_size, hidden_size= self.hidden_size // 2, bidirectional=True,
                            dropout=cfg['dropout'], num_layers=self.num_layers, batch_first=True)
-        self.bilstm_input_size += 200
-        self.dropout = Dropout(p=0.2)
+        #self.bilstm_input_size += 200
+        if cfg['crf']:
+            self.crf = CRF(num_tags=vocab.index_roles, batch_first=True)
         self.hidden2label = Linear(in_features=self.hidden_size, out_features=vocab.index_roles)
         self.optimizer = torch.optim.Adam(self.parameters(), lr=cfg['lr'])
         self.hidden = self.init_hidden(cfg['batch_size'], xavier=True)
@@ -39,13 +40,17 @@ class SRLModel(Module):
         pos_embed = self.pos_embeddings(x['pos_tags'])
         lemma_embed = self.lemma_embeddings(x['lemmas'])
         pred_embed = self.pred_embedding(x['predicates'])
-        bert_embed, _ = self.bert_bilstm(x['bert_embed'])
+        bert_embed = x['bert_embed']
+        #bert_embed, _ = self.bert_bilstm(x['bert_embed'])
 
+        #packed_embed = torch.cat((word_embed, pos_embed, lemma_embed, pred_embed), dim=2)
         packed_embed = torch.cat((word_embed, pos_embed, lemma_embed, pred_embed, bert_embed), dim=2)
         lstm_output_pack, self.hidden = self.bilstm(packed_embed)
-        #out = self.dropout(lstm_output_pack)
         out = self.hidden2label(lstm_output_pack)
-
+        if cfg['crf']:
+            mask = get_mask(x['roles'])
+            log_likelihood, sequence_of_tags = self.crf(out, x['roles'], mask=mask), self.crf.decode(out)
+            return log_likelihood, sequence_of_tags
         return out
 
     def init_hidden(self, batch_size: int, xavier: bool = True):
@@ -88,11 +93,12 @@ class SRLModel(Module):
                 batch_number += 1
                 self.zero_grad()
                 self.hidden = self.init_hidden(batch_size=cfg['batch_size'], xavier=True)
-                predicts = self(x)
-                #predicts = predicts.view(-1, predicts.shape[-1])
-                #predicts = torch.argmax(predicts, -1)
-                #y = x['roles'].view(-1)
-                loss = self.loss_fn(predicts, x['roles'])
+                if cfg['crf']:
+                    log_likelihood, predicts = self(x)
+                    loss = -1*log_likelihood
+                else:
+                    predicts = self(x)
+                    loss = self.loss_fn(predicts, x['roles'])
                 train_losses.append(loss)
                 self.writer.add_scalar('train_loss', loss, batch_number)
                 loss.backward()
@@ -108,10 +114,12 @@ class SRLModel(Module):
             for x in val_data_loader:
                 batch_number += 1
                 with torch.no_grad():
-                    predicts = self(x)
-                    # predicts = predicts.view(-1, output.shape[-1])
-                    # y = y.view(-1)
-                loss = self.loss_fn(predicts, x['roles'])
+                    if cfg['crf']:
+                        log_likelihood, predicts = self(x)
+                        loss = -1*log_likelihood
+                    else:
+                        predicts = self(x)
+                        loss = self.loss_fn(predicts, x['roles'])
                 valid_losses.append(loss)
                 self.writer.add_scalar('valid_loss', loss, batch_number)
             mean_valid_loss = sum(valid_losses) / len(valid_losses)

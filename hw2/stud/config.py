@@ -22,7 +22,8 @@ class Config(dict):
 
 
 config = Config(
-    model_name='model_20epoch_1655302145.592678.pt',
+    model_name='model_15epoch_1657662650.800662.pt',  #Final model
+    #model_name='model_1epoch_1657713175.472844.pt',
     train_data='',
     training_prediction='mixed_teacher_forcing',
     dynamic_tf=False,
@@ -35,11 +36,12 @@ config = Config(
     bert_embed_dim=768,
     bert_bilstm_dim=200,
     hidden_size=500,
-    num_epoch=20,
+    num_epoch=15,
     lr=1e-4,
     log_dir='',
     model_path='',
     dropout=0.2,
     num_layers=2,
-    is_train = True
+    is_train=False,
+    crf=False
 )

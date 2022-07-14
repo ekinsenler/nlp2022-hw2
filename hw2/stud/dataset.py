@@ -1,27 +1,21 @@
 from torch.utils.data import Dataset
-from vocab import Vocabulary
+from stud.vocab import Vocabulary
 from torch.nn.utils.rnn import pad_sequence
-from transformers import AutoModel, AutoTokenizer, BertModel, BertTokenizer
 import torch
-from bertEmbedder import bertEmbeddings
-from nltk.tokenize.treebank import TreebankWordDetokenizer
-
+from stud.bertEmbedder import bertEmbeddings
 
 ####################################################################
 #Dataset class for predicate identification and classification task#
 ####################################################################
 
 class PICDataset(Dataset):
-    def __init__(self, sentences, labels, vocab):
+    def __init__(self, sentences, labels, vocab, bert_tokenizer, bert_model):
         self.sentences = sentences
         self.labels = labels
         self.vocab = vocab
         self.no_pred_ids = []
 
-        checkpoint = "bert-base-cased"
-        tokenizer = AutoTokenizer.from_pretrained(checkpoint, clean_text=False)
-        model = AutoModel.from_pretrained(checkpoint)
-        self.bert_embedder = bertEmbeddings(model=model, tokenizer=tokenizer, device=torch.device('cpu'))
+        self.bert_embedder = bertEmbeddings(model=bert_model, tokenizer=bert_tokenizer, device=torch.device('cpu'))
 
     def __len__(self) -> int:
         assert hasattr(self, 'features'), 'Call prepare features first'
@@ -57,7 +51,8 @@ class PICDataset(Dataset):
                     sentence['predicates'] = [self.vocab.pred2id['_']]*len(self.sentences[sentence_key]['predicates'])
                     sentence['predicates'][i] = self.vocab.pred2id.get(self.pred[i], self.vocab.pred2id['<UNK>'])
                     sentence['pos_tags'] = self.vocab.pts2indices(self.sentences[sentence_key]['pos_tags'])
-                    sentence['roles'] = self.vocab.roles2indices(self.labels[sentence_key]['roles'][i])
+                    if self.labels:
+                        sentence['roles'] = self.vocab.roles2indices(self.labels[sentence_key]['roles'][i])
                     sentence['id'] = sentence_key
                     sentence['bert_embed'] = self.bert_embedder.get_sentence_vector(self.sentences[sentence_key]['words'])
                     sentence['pred_indeces'] = i
@@ -73,7 +68,8 @@ class PICDataset(Dataset):
         predicates_batch = [sentence['predicates'] for sentence in batch]
         pos_tags_batch = [sentence['pos_tags'] for sentence in batch]
         lemmas_batch = [sentence['lemmas'] for sentence in batch]
-        roles_batch = [sentence['roles'] for sentence in batch]
+        if 'roles' in batch[0]:
+            roles_batch = [sentence['roles'] for sentence in batch]
         bert_batch = [sentence['bert_embed'] for sentence in batch]
         ids_batch = [sentence['id'] for sentence in batch]
         words_value_batch = [sentence['words_values'] for sentence in batch]
@@ -82,7 +78,8 @@ class PICDataset(Dataset):
         sentence['predicates'] = pad_sequence([torch.as_tensor(sample) for sample in predicates_batch], batch_first=True)
         sentence['pos_tags'] = pad_sequence([torch.as_tensor(sample) for sample in pos_tags_batch], batch_first=True)
         sentence['lemmas'] = pad_sequence([torch.as_tensor(sample) for sample in lemmas_batch], batch_first=True)
-        sentence['roles'] = pad_sequence([torch.as_tensor(sample) for sample in roles_batch], batch_first=True)
+        if 'roles' in batch[0]:
+            sentence['roles'] = pad_sequence([torch.as_tensor(sample) for sample in roles_batch], batch_first=True)
         sentence['bert_embed'] = pad_sequence(bert_batch, batch_first=True)
         sentence['id'] = ids_batch
         sentence['words_values'] =words_value_batch

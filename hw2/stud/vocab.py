@@ -1,6 +1,6 @@
 import torch
+from collections import OrderedDict
 
-from config import config as cfg
 class Vocabulary:
     def __init__(self):
         self.id2lemma = {0:'<PAD>', 1: '<SOS>', 2:'<EOS>', 3:'<UNK>', 4:'<SEP>'}
@@ -13,6 +13,7 @@ class Vocabulary:
         self.pt2id = {k:j for j,k in self.id2pt.items()}
         self.id2role = {0:'<PAD>'}
         self.role2id = {k:j for j,k in self.id2role.items()}
+        self.role_count = OrderedDict()
 
     ####Adjusting the indeces with the special tokens
         self.index_words = 4
@@ -50,6 +51,9 @@ class Vocabulary:
                         self.id2role[self.index_roles] = i_role
                         self.role2id[i_role] = self.index_roles
                         self.index_roles += 1
+                        self.role_count[i_role] = 1
+                    else:
+                        self.role_count[i_role] += 1
             self.constructed = True
 
 

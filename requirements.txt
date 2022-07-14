@@ -12,3 +12,5 @@ gensim
 tensorboard
 torchmetrics
 nltk
+seaborn
+pytorch-crf
